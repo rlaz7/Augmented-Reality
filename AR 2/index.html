@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uji Coba AR Murni</title>
+
+    <!-- Menggunakan versi terbaru sesuai referensi Anda -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Desain untuk notifikasi */
+        #scan-notification {
+            position: absolute;
+            bottom: -50px;
+            /* Sembunyi di bawah layar secara default */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(46, 204, 113, 0.9);
+            /* Warna hijau */
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-family: sans-serif;
+            font-weight: bold;
+            font-size: 16px;
+            z-index: 100;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s ease-in-out;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Class ini ditambahkan oleh JS saat target ditemukan */
+        .show-notif {
+            bottom: 30px !important;
+            opacity: 1 !important;
+        }
+    </style>
+
+    <script>
+        // Menunggu sampai seluruh halaman dimuat
+        document.addEventListener("DOMContentLoaded", function () {
+            // Mengambil elemen target AR dan elemen notifikasi
+            const target = document.querySelector('#ar-target');
+            const notification = document.querySelector('#scan-notification');
+
+            // Saat gambar marker berhasil dideteksi (AR Muncul)
+            target.addEventListener("targetFound", event => {
+                notification.classList.add('show-notif');
+                console.log("Logo terdeteksi!");
+            });
+
+            // Saat gambar marker hilang dari kamera (AR Hilang)
+            target.addEventListener("targetLost", event => {
+                notification.classList.remove('show-notif');
+                console.log("Logo hilang dari jangkauan kamera.");
+            });
+        });
+    </script>
+</head>
+
+<body>
+
+    <!-- UI Notifikasi yang akan muncul di layar -->
+    <div id="scan-notification">✨ Logo Terdeteksi! ✨</div>
+
+    <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true;" color-space="sRGB"
+        renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false">
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <!-- Tambahkan ID "ar-target" agar bisa dibaca oleh Javascript di atas -->
+        <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
+            <!-- Source diubah ke Untitled.glb sesuai nama file Anda -->
+            <a-gltf-model src="./Untitled.glb" position="0 0 0" scale="0.5 0.5 0.5"></a-gltf-model>
+        </a-entity>
+
+    </a-scene>
+
+</body>
+
+</html>
