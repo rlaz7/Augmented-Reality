@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Portal Web AR - Multi Model</title>
+
+    <!-- A-Frame and MindAR Libraries -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+    <!-- Google Font for Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-primary: #080c14;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --card-hover-bg: rgba(255, 255, 255, 0.06);
+            --accent-primary: #6366f1;
+            /* Indigo */
+            --accent-secondary: #06b6d4;
+            /* Cyan */
+            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --glass-blur: blur(16px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            color: var(--text-primary);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ---------------- AR HUD & OVERLAYS ---------------- */
+        .ar-hud {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 150;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        /* Top HUD Bar */
+        .ar-hud-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            pointer-events: auto;
+        }
+
+        .hud-status-badge {
+            background: rgba(8, 12, 20, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--danger-color);
+        }
+
+        .status-dot.scanning {
+            background-color: #f59e0b;
+            /* Amber */
+            box-shadow: 0 0 8px #f59e0b;
+            animation: pulseDot 1s infinite alternate;
+        }
+
+        .status-dot.detected {
+            background-color: var(--success-color);
+            box-shadow: 0 0 8px var(--success-color);
+            animation: none;
+        }
+
+        @keyframes pulseDot {
+            from {
+                opacity: 0.4;
+                transform: scale(0.8);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+
+        .ar-hud-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .hud-btn {
+            background: rgba(8, 12, 20, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            color: white;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.25s ease;
+        }
+
+        .hud-btn:hover {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: var(--accent-primary);
+            transform: scale(1.05);
+        }
+
+        .hud-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Mode Switcher HUD (3D / 2D Toggle) */
+        .hud-mode-toggle {
+            background: rgba(8, 12, 20, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-radius: 20px;
+            padding: 4px;
+            display: flex;
+            gap: 4px;
+            pointer-events: auto;
+        }
+
+        .mode-toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .mode-toggle-btn.active {
+            background: var(--accent-gradient);
+            color: white;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.2);
+        }
+
+        /* Bottom HUD Bar & Transform Controls */
+        .ar-hud-bottom {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+        }
+
+        /* Premium Scan Notification Toast */
+        #scan-notification {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.9) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateY(100px);
+            opacity: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 200;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        #scan-notification.show-notif {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: white;
+            border-radius: 50%;
+            box-shadow: 0 0 8px white;
+            animation: pulseGlow 1.2s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            from {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+
+            to {
+                transform: scale(1.3);
+                opacity: 1;
+            }
+        }
+
+        /* Model controls */
+        .model-controls {
+            display: flex;
+            gap: 10px;
+            background: rgba(8, 12, 20, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            padding: 8px 12px;
+            border-radius: 25px;
+            pointer-events: auto;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:hover {
+            background: var(--accent-primary);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .control-btn:active {
+            transform: scale(0.9);
+        }
+
+        .control-btn.btn-on {
+            background: var(--accent-gradient);
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+        }
+
+        /* Target Pack Selection Drawer */
+        .target-drawer {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 280px;
+            height: 100vh;
+            background: rgba(8, 12, 20, 0.85);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-left: 1px solid var(--card-border);
+            z-index: 500;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .target-drawer.active {
+            right: 0;
+        }
+
+        .drawer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 12px;
+        }
+
+        .drawer-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .drawer-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .drawer-close:hover {
+            color: white;
+        }
+
+        .target-options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 4px;
+        }
+
+        .target-options-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .target-options-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+        }
+
+        .drawer-option {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .drawer-option:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .drawer-option.selected {
+            background: rgba(99, 102, 241, 0.12);
+            border-color: var(--accent-primary);
+        }
+
+        .drawer-option-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .drawer-option-file {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+
+        /* Camera loading/error overlays */
+        .ar-loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            z-index: 120;
+            color: white;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .ar-error-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-primary);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 180;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .ar-error-overlay.active {
+            display: flex;
+        }
+
+        .ar-error-overlay p {
+            color: var(--text-secondary);
+            margin: 16px 0 24px 0;
+            font-weight: 300;
+            font-size: 0.95rem;
+            max-width: 320px;
+            line-height: 1.5;
+        }
+
+        /* Custom Modal Permission */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(4, 6, 10, 0.85);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 24px;
+        }
+
+        .modal-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 32px 24px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            animation: modalScaleUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes modalScaleUp {
+            from {
+                opacity: 0;
+                transform: scale(0.92);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            color: var(--accent-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            margin: 0 auto 20px auto;
+        }
+
+        .modal-box h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .modal-box p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 24px;
+            font-weight: 300;
+        }
+
+        .btn {
+            background: var(--accent-gradient);
+            border: none;
+            color: white;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .btn:hover {
+            opacity: 0.95;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.25);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: none;
+        }
+
+        video {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            object-fit: cover !important;
+            z-index: 1 !important;
+        }
+
+        .a-canvas {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 2 !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- CUSTOM PERMISSION MODAL DIALOG -->
+    <div class="modal-overlay" id="permission-modal">
+        <div class="modal-box">
+            <div class="modal-icon">📷</div>
+            <h3>Mulai Kamera Web AR</h3>
+            <p>Untuk memindai target gambar pelacak dan memunculkan visual AR kustom, aplikasi ini memerlukan akses ke
+                kamera belakang perangkat Anda.</p>
+            <button class="btn" id="btn-confirm-permission">Izinkan Kamera & Mulai</button>
+        </div>
+    </div>
+
+    <!-- MAIN CAMERA AR HUD LAYER -->
+    <div class="ar-hud">
+
+        <!-- Top HUD Bar -->
+        <div class="ar-hud-top">
+            <div class="hud-status-badge">
+                <div class="status-dot scanning" id="hud-status-dot"></div>
+                <span id="hud-status-text">Menyiapkan Kamera...</span>
+            </div>
+
+            <div class="hud-mode-toggle">
+                <button class="mode-toggle-btn active" id="btn-mode-3d">3D Model</button>
+                <button class="mode-toggle-btn" id="btn-mode-2d">2D Gambar</button>
+            </div>
+
+            <div class="ar-hud-actions">
+                <button class="hud-btn" id="btn-toggle-drawer" title="Pilih Target Mind">📁</button>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div class="ar-loader" id="ar-spinner-loading" style="display: none;">
+            <div class="spinner"></div>
+            <p style="font-size: 0.85rem; font-weight: 300;">Menginisialisasi Kamera & Sensor AR...</p>
+        </div>
+
+        <!-- Bottom HUD Bar -->
+        <div class="ar-hud-bottom">
+            <div id="scan-notification">
+                <div class="pulse-dot"></div>
+                <span id="scan-notif-message">Target Berhasil Discan!</span>
+            </div>
+
+            <div class="model-controls">
+                <button class="control-btn" id="btn-scale-up" title="Perbesar Objek">+</button>
+                <button class="control-btn" id="btn-scale-down" title="Perkecil Objek">-</button>
+                <button class="control-btn" id="btn-rotate-left" title="Putar Kiri">↺</button>
+                <button class="control-btn" id="btn-rotate-right" title="Putar Kanan">↻</button>
+                <button class="control-btn" id="btn-reset-model" title="Reset Ukuran & Rotasi">⟲</button>
+                <button class="control-btn" id="btn-auto-rotate" title="Auto Putar Otomatis">🔄</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera access denied overlay -->
+    <div class="ar-error-overlay" id="ar-camera-error">
+        <div class="modal-icon"
+            style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: var(--danger-color);">
+            ⚠️</div>
+        <h3 style="color: var(--text-primary);">Akses Kamera Ditolak</h3>
+        <p>Aplikasi tidak dapat mengakses kamera Anda. Harap berikan izin akses kamera pada pengaturan browser Anda lalu
+            muat ulang halaman ini.</p>
+        <button class="btn btn-secondary" onclick="window.location.reload()">Muat Ulang Halaman</button>
+    </div>
+
+    <!-- TARGET FILE SELECTOR DRAWER -->
+    <div class="target-drawer" id="target-drawer">
+        <div class="drawer-header">
+            <h3>Pilih Target Pack</h3>
+            <button class="drawer-close" id="btn-close-drawer">✕</button>
+        </div>
+
+        <div class="target-options-list">
+            <!-- KONFIGURASI DUA MODEL SESUAI REQUEST -->
+            <div class="drawer-option selected" data-filename="./Gradien/targets.mind" data-model="./Gradien/AR 3.glb">
+                <div class="drawer-option-title">Target Utama (AR 3)</div>
+                <div class="drawer-option-file">targets.mind</div>
+            </div>
+            <div class="drawer-option" data-filename="./Gradien/targets1.mind" data-model="./Gradien/model.glb">
+                <div class="drawer-option-title">Target Tambahan 1 (Model)</div>
+                <div class="drawer-option-file">targets1.mind</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // State variables
+        let currentTargetFile = './Gradien/targets.mind';
+        let currentModelFile = './Gradien/AR 3.glb'; // Variabel baru untuk melacak berkas model aktif
+        let activeViewMode = '3d';
+        let isARRunning = false;
+
+        const default3DScale = { x: 1.0, y: 1.0, z: 1.0 };
+        const default2DScale = { x: 1.0, y: 1.0, z: 1.0 };
+
+        const defaultRotation3D = { x: 0, y: 0, z: 0 };
+        const defaultRotation2D = { x: 0, y: 0, z: 0 };
+
+        let scale3D = { ...default3DScale };
+        let rotation3D = { ...defaultRotation3D };
+        let autoRotateEnabled = false;
+
+        let scale2D = { ...default2DScale };
+        let rotation2D = { x: 0, y: 0, z: 0 };
+
+        // DOM elements
+        const permissionModal = document.getElementById('permission-modal');
+        const confirmPermissionBtn = document.getElementById('btn-confirm-permission');
+        const spinner = document.getElementById('ar-spinner-loading');
+        const errorOverlay = document.getElementById('ar-camera-error');
+        const scanNotification = document.getElementById('scan-notification');
+        const scanNotifMessage = document.getElementById('scan-notif-message');
+        const statusDot = document.getElementById('hud-status-dot');
+        const statusText = document.getElementById('hud-status-text');
+
+        const btnMode3D = document.getElementById('btn-mode-3d');
+        const btnMode2D = document.getElementById('btn-mode-2d');
+
+        const targetDrawer = document.getElementById('target-drawer');
+        const btnToggleDrawer = document.getElementById('btn-toggle-drawer');
+        const btnCloseDrawer = document.getElementById('btn-close-drawer');
+        const drawerOptions = document.querySelectorAll('.drawer-option');
+
+        const btnScaleUp = document.getElementById('btn-scale-up');
+        const btnScaleDown = document.getElementById('btn-scale-down');
+        const btnRotateLeft = document.getElementById('btn-rotate-left');
+        const btnRotateRight = document.getElementById('btn-rotate-right');
+        const btnResetModel = document.getElementById('btn-reset-model');
+        const btnAutoRotate = document.getElementById('btn-auto-rotate');
+
+        confirmPermissionBtn.addEventListener('click', () => {
+            permissionModal.style.display = 'none';
+            spinner.style.display = 'flex';
+            errorOverlay.classList.remove('active');
+            startARSession();
+        });
+
+        // Initialize/Start the AR engine dynamically
+        function startARSession() {
+            isARRunning = true;
+
+            const oldScene = document.querySelector('a-scene');
+            if (oldScene) oldScene.remove();
+
+            statusDot.className = "status-dot scanning";
+            statusText.textContent = "Mencari Target...";
+            scanNotification.classList.remove('show-notif');
+
+            // PERBAIKAN UTAMA: Elemen src pada a-gltf-model sekarang diisi secara dinamis dengan `${currentModelFile}`
+            const aSceneHtml = `
+                <a-scene 
+                    mindar-image="imageTargetSrc: ${currentTargetFile}; autoStart: true; uiLoading: no; uiScanning: no; filterMinCF:0.001; filterBeta:10;" 
+                    color-space="sRGB"
+                    renderer="colorManagement: true"
+                    vr-mode-ui="enabled: false"
+                    device-orientation-permission-ui="enabled: false">
+
+                    <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
+                    <a-light type="directional" color="#ffffff" intensity="1.2" position="-1 2 4"></a-light>
+                    <a-light type="directional" color="#b0c8ff" intensity="0.5" position="3 1 -2"></a-light>
+                    
+                    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+                    <a-entity id="ar-target-entity" mindar-image-target="targetIndex: 0">
+                        <a-gltf-model 
+                            id="ar-model-entity" 
+                            src="${currentModelFile}" 
+                            position="0 0 0" 
+                            scale="${scale3D.x} ${scale3D.y} ${scale3D.z}" 
+                            rotation="${rotation3D.x} ${rotation3D.y} ${rotation3D.z}"
+                            visible="${activeViewMode === '3d' ? 'true' : 'false'}"
+                            animation__spin="property: rotation; from: ${rotation3D.x} 0 ${rotation3D.z}; to: ${rotation3D.x} 360 ${rotation3D.z}; loop: true; dur: 8000; easing: linear; paused: true;">
+                        </a-gltf-model>
+
+                        <a-image 
+                            id="ar-image-entity" 
+                            src="./Gradien/logo gradien.png" 
+                            position="0 0 0" 
+                            width="1"
+                            height="1"
+                            scale="${scale2D.x} ${scale2D.y} ${scale2D.z}" 
+                            rotation="${rotation2D.x} ${rotation2D.y} ${rotation2D.z}"
+                            visible="${activeViewMode === '2d' ? 'true' : 'false'}">
+                        </a-image>
+                    </a-entity>
+
+                </a-scene>
+            `;
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = aSceneHtml.trim();
+            const newScene = tempDiv.firstChild;
+            document.body.appendChild(newScene);
+
+            newScene.addEventListener("renderstart", () => {
+                spinner.style.display = 'none';
+            });
+
+            newScene.addEventListener("camera-error", (e) => {
+                console.error("Camera access denied or failed:", e);
+                spinner.style.display = 'none';
+                errorOverlay.classList.add('active');
+            });
+
+            const targetEntity = newScene.querySelector('#ar-target-entity');
+
+            targetEntity.addEventListener("targetFound", event => {
+                statusDot.className = "status-dot detected";
+                statusText.textContent = "Target Terdeteksi";
+
+                if (activeViewMode === '3d') {
+                    scanNotifMessage.textContent = "Target Berhasil Discan! Model 3D Muncul.";
+                } else {
+                    scanNotifMessage.textContent = "Target Berhasil Discan! Gambar 2D Muncul.";
+                }
+
+                scanNotification.classList.add('show-notif');
+
+                if (navigator.vibrate) {
+                    navigator.vibrate([120]);
+                }
+            });
+
+            targetEntity.addEventListener("targetLost", event => {
+                statusDot.className = "status-dot scanning";
+                statusText.textContent = "Mencari Target...";
+                scanNotification.classList.remove('show-notif');
+            });
+        }
+
+        function restartARSession() {
+            if (!isARRunning) return;
+
+            const sceneEl = document.querySelector('a-scene');
+            if (sceneEl && sceneEl.systems && sceneEl.systems["mindar-image-system"]) {
+                try {
+                    sceneEl.systems["mindar-image-system"].stop();
+                } catch (e) {
+                    console.warn("MindAR system stop warning:", e);
+                }
+            }
+
+            const videos = document.querySelectorAll('video');
+            videos.forEach(video => {
+                if (video.srcObject) {
+                    const stream = video.srcObject;
+                    const tracks = stream.getTracks();
+                    tracks.forEach(track => track.stop());
+                }
+                video.parentNode.removeChild(video);
+            });
+
+            const mindarOverlays = document.querySelectorAll('.mindar-ui-loading, .mindar-ui-scanning, .mindar-ui-compatibility');
+            mindarOverlays.forEach(overlay => overlay.parentNode.removeChild(overlay));
+
+            if (sceneEl) sceneEl.remove();
+
+            spinner.style.display = 'flex';
+            startARSession();
+        }
+
+        // Mode toggles (3D / 2D)
+        btnMode3D.addEventListener('click', () => {
+            if (activeViewMode === '3d') return;
+            activeViewMode = '3d';
+            btnMode3D.classList.add('active');
+            btnMode2D.classList.remove('active');
+
+            const modelEntity = document.querySelector('#ar-model-entity');
+            const imageEntity = document.querySelector('#ar-image-entity');
+            if (modelEntity && imageEntity) {
+                modelEntity.setAttribute('visible', 'true');
+                imageEntity.setAttribute('visible', 'false');
+            }
+        });
+
+        btnMode2D.addEventListener('click', () => {
+            if (activeViewMode === '2d') return;
+            activeViewMode = '2d';
+            btnMode2D.classList.add('active');
+            btnMode3D.classList.remove('active');
+
+            const modelEntity = document.querySelector('#ar-model-entity');
+            const imageEntity = document.querySelector('#ar-image-entity');
+            if (modelEntity && imageEntity) {
+                modelEntity.setAttribute('visible', 'false');
+                imageEntity.setAttribute('visible', 'true');
+            }
+        });
+
+        // Drawer Operations
+        btnToggleDrawer.addEventListener('click', () => {
+            targetDrawer.classList.toggle('active');
+        });
+
+        btnCloseDrawer.addEventListener('click', () => {
+            targetDrawer.classList.remove('active');
+        });
+
+        drawerOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                drawerOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+
+                // Mengambil berkas target (.mind) dan berkas model (.glb) baru dari atribut dataset HTML
+                currentTargetFile = option.getAttribute('data-filename');
+                currentModelFile = option.getAttribute('data-model');
+
+                console.log("Switching target to:", currentTargetFile);
+                console.log("Switching model to:", currentModelFile);
+
+                // Setiap kali mengganti target baru, matikan status auto-rotate terlebih dahulu demi stabilitas
+                autoRotateEnabled = false;
+                btnAutoRotate.classList.remove('btn-on');
+
+                targetDrawer.classList.remove('active');
+                restartARSession();
+            });
+        });
+
+        // Transformation utilities
+        function getActiveEntity() {
+            if (activeViewMode === '3d') {
+                return document.querySelector('#ar-model-entity');
+            } else {
+                return document.querySelector('#ar-image-entity');
+            }
+        }
+
+        function updateTransformations() {
+            const activeEntity = getActiveEntity();
+            if (!activeEntity) return;
+
+            if (activeViewMode === '3d') {
+                activeEntity.setAttribute('scale', `${scale3D.x} ${scale3D.y} ${scale3D.z}`);
+                activeEntity.setAttribute('rotation', `${rotation3D.x} ${rotation3D.y} ${rotation3D.z}`);
+            } else {
+                activeEntity.setAttribute('scale', `${scale2D.x} ${scale2D.y} ${scale2D.z}`);
+                activeEntity.setAttribute('rotation', `${rotation2D.x} ${rotation2D.y} ${rotation2D.z}`);
+            }
+        }
+
+        btnScaleUp.addEventListener('click', () => {
+            if (activeViewMode === '3d') {
+                scale3D.x = Math.min(scale3D.x + 0.1, 5.0);
+                scale3D.y = Math.min(scale3D.y + 0.1, 5.0);
+                scale3D.z = Math.min(scale3D.z + 0.1, 5.0);
+            } else {
+                scale2D.x = Math.min(scale2D.x + 0.1, 5.0);
+                scale2D.y = Math.min(scale2D.y + 0.1, 5.0);
+                scale2D.z = Math.min(scale2D.z + 0.1, 5.0);
+            }
+            updateTransformations();
+        });
+
+        btnScaleDown.addEventListener('click', () => {
+            if (activeViewMode === '3d') {
+                scale3D.x = Math.max(scale3D.x - 0.1, 0.1);
+                scale3D.y = Math.max(scale3D.y - 0.1, 0.1);
+                scale3D.z = Math.max(scale3D.z - 0.1, 0.1);
+            } else {
+                scale2D.x = Math.max(scale2D.x - 0.1, 0.2);
+                scale2D.y = Math.max(scale2D.y - 0.1, 0.2);
+                scale2D.z = Math.max(scale2D.z - 0.1, 0.2);
+            }
+            updateTransformations();
+        });
+
+        btnRotateLeft.addEventListener('click', () => {
+            if (activeViewMode === '3d') {
+                rotation3D.y = (rotation3D.y + 15) % 360;
+            } else {
+                rotation2D.z = (rotation2D.z + 15) % 360;
+            }
+            updateTransformations();
+        });
+
+        btnRotateRight.addEventListener('click', () => {
+            if (activeViewMode === '3d') {
+                rotation3D.y = (rotation3D.y - 15) % 360;
+            } else {
+                rotation2D.z = (rotation2D.z - 15) % 360;
+            }
+            updateTransformations();
+        });
+
+        btnResetModel.addEventListener('click', () => {
+            stopAutoRotate();
+            if (activeViewMode === '3d') {
+                scale3D = { ...default3DScale };
+                rotation3D = { ...defaultRotation3D };
+            } else {
+                scale2D = { ...default2DScale };
+                rotation2D = { x: 0, y: 0, z: 0 };
+            }
+            updateTransformations();
+        });
+
+        function stopAutoRotate() {
+            autoRotateEnabled = false;
+            btnAutoRotate.classList.remove('btn-on');
+            const modelEl = document.querySelector('#ar-model-entity');
+            if (modelEl) {
+                modelEl.setAttribute('animation__spin', 'paused', true);
+            }
+        }
+
+        btnAutoRotate.addEventListener('click', () => {
+            if (activeViewMode !== '3d') return;
+            autoRotateEnabled = !autoRotateEnabled;
+
+            const modelEl = document.querySelector('#ar-model-entity');
+            if (!modelEl) return;
+
+            if (autoRotateEnabled) {
+                btnAutoRotate.classList.add('btn-on');
+                modelEl.setAttribute('animation__spin', {
+                    property: 'rotation',
+                    from: `${rotation3D.x} 0 ${rotation3D.z}`,
+                    to: `${rotation3D.x} 360 ${rotation3D.z}`,
+                    loop: true,
+                    dur: 8000,
+                    easing: 'linear',
+                    paused: false
+                });
+            } else {
+                stopAutoRotate();
+            }
+        });
+
+        // Swipe & Drag controls logic
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+
+        function isEventInControls(e) {
+            const path = e.composedPath() || [];
+            for (let i = 0; i < path.length; i++) {
+                const el = path[i];
+                if (el.classList && (
+                    el.classList.contains('model-controls') ||
+                    el.classList.contains('ar-hud-top') ||
+                    el.classList.contains('target-drawer') ||
+                    el.id === 'permission-modal'
+                )) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        window.addEventListener('mousedown', (e) => {
+            if (isARRunning && permissionModal.style.display === 'none' && !isEventInControls(e)) {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging && isARRunning) {
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+
+                if (activeViewMode === '3d') {
+                    rotation3D.y = (rotation3D.y - deltaX * 0.4) % 360;
+                    rotation3D.x = Math.max(-90, Math.min(90, rotation3D.x - deltaY * 0.4));
+                } else {
+                    rotation2D.z = (rotation2D.z - deltaX * 0.4) % 360;
+                }
+                updateTransformations();
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        window.addEventListener('mouseup', () => { isDragging = false; });
+
+        window.addEventListener('touchstart', (e) => {
+            if (isARRunning && e.touches.length === 1 && permissionModal.style.display === 'none' && !isEventInControls(e)) {
+                isDragging = true;
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (isDragging && isARRunning && e.touches.length === 1) {
+                const deltaX = e.touches[0].clientX - previousMousePosition.x;
+                const deltaY = e.touches[0].clientY - previousMousePosition.y;
+
+                if (activeViewMode === '3d') {
+                    rotation3D.y = (rotation3D.y - deltaX * 0.4) % 360;
+                    rotation3D.x = Math.max(-90, Math.min(90, rotation3D.x - deltaY * 0.4));
+                } else {
+                    rotation2D.z = (rotation2D.z - deltaX * 0.4) % 360;
+                }
+                updateTransformations();
+
+                previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+
+        window.addEventListener('touchend', () => { isDragging = false; });
+    </script>
+</body>
+
+</html>
